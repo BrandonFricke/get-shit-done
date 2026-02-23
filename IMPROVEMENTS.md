@@ -73,7 +73,9 @@ Three conflicting patterns are used across the codebase:
 
 Functions that call `error()` never return, making them unpredictable for callers. Functions that use `output({ error })` continue execution.
 
-**Recommendation:** Standardize on one pattern. `output({ error })` is the better choice since it allows the CLI to return structured errors. Reserve `process.exit(1)` for truly fatal errors (missing required files, corrupt state). Add `GSD_DEBUG=1` env var to log all swallowed errors.
+There is also at least one callsite bug: `state.cjs:51` calls `output(result)` without passing the `raw` parameter, so raw-mode output is broken for that command.
+
+**Recommendation:** Standardize on one pattern. `output({ error })` is the better choice since it allows the CLI to return structured errors. Reserve `process.exit(1)` for truly fatal errors (missing required files, corrupt state). Add `GSD_DEBUG=1` env var to log all swallowed errors. Audit all `output()` calls for missing `raw` parameter.
 
 ### 1g. Repeated file reads in hot paths
 
@@ -156,7 +158,13 @@ Tests validate individual `gsd-tools` commands in isolation but never test a ful
 
 **Recommendation:** Add targeted unit tests for frontmatter parsing edge cases (nested objects, inline arrays, quoted values with colons) and hook output formatting.
 
-### 3c. Tests spawn subprocesses for every assertion
+### 3c. Possibly unused test helper export
+
+`tests/helpers.cjs:40` exports `TOOLS_PATH` which does not appear to be imported by any test file. Minor dead code.
+
+**Recommendation:** Verify usage and remove if unused.
+
+### 3d. Tests spawn subprocesses for every assertion
 
 Every test calls `runGsdTools()` which spawns a new Node.js process via `execSync`. This adds ~100ms overhead per test. With 96 tests, this accounts for most of the ~4.7s test duration.
 
